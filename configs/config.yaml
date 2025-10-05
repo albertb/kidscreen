@@ -1,0 +1,34 @@
+# Every calendar will be fetched, and optionally filtered with the given attendees regexp.
+# Events scheduled for today and tomorrow will be added to their respective cards.
+calendars:
+  - url: "https://calendar.google.com/calendar/ical/FOO/basic.ics"
+    attendees_regexp: "whoever@gmail.com"
+  - url: "https://calendar.google.com/calendar/ical/BAR/basic.ics"
+
+# The weather location will be used to fetch weather and air quality forecast for the day.
+# If rain is forecast, a card with a chart of the hourly probability will be displayed.
+# If air quality is forecast to be poor, a card with a chart of the houly AQI will be displayed.
+weather:
+  #location: { lat: 45.5088, lng: -73.5878 } # Montreal
+  location: { lat: 47.6696078, lng: -122.3231917 } # Seattle
+#  precipitations:
+#    relevant_time: { start: 8h, end: 19h }
+#    chart: { top: 100, step: 25, min: 0, high: 75 }
+#  airquality:
+#    relevant_time: { start: 8h, end: 19h }
+#    chart: { top: 150, step: 25, min: 5, high: 100 }
+
+# The page will be fetched, and the XPaths used to extract images and their labels.
+# One image/label pair will be randomly selected to be displayed in a card.
+#picture:
+#  page_url: "https://example.com/galery"
+#  image_xpath: "//div[@class='thumbnail']/img"
+#  label_xpath: "following-sibling::p[@class='label'][1]"
+
+# Using the given OpenAI API key, each card will be generated using the specified prompt.
+generated:
+  open_ai_api_key: "INSERT-OPEN-AI-API-KEY-HERE"
+  cards:
+    - title: "Aujourd'hui dans l'histoire"
+      priority: 45
+      prompt: "Aujourd'hui dans l'histoire, maximum 20 mots. Ne répète pas la date, seulement l'année."

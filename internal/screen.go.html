@@ -1,0 +1,208 @@
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        :root {
+            --pico-font-size: 2.0rem;
+            --pico-spacing: 0.3em;
+            --pico-nav-element-spacing-vertical: 0.1rem;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        nav svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        header * {
+            margin-bottom: 0;
+        }
+
+        .content-grid {
+            column-count: 2;
+            column-gap: 1.5rem;
+            height: 80vh;
+        }
+
+        article>header, article>ul {
+            margin-bottom: 0
+        }
+
+        .content-grid>article {
+            break-inside: avoid;
+        }
+
+        article>div.chart {
+            height: 4.5rem;
+            width: 100%;
+        }
+
+        article>img {
+            height: 8rem;
+            width: 100%;
+            object-fit: contain;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
+        integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+<body class="container">
+    <header>
+        <nav>
+            {{with .Header}}
+                <ul>
+                    <li><h1>{{.Title}}</h1></li>
+                </ul>
+                <ul>
+                    <li class="condition"><svg><use href="#{{.ConditionSVG}}"></svg></li>
+                    <li><h3>{{.MaxTemperature}}</h3></li>
+                    <li><h6>{{.MinTemperature}}</h6></li>
+                </ul>
+            {{end}}
+        </nav>
+    </header>
+    <main>
+        <div class="content-grid">
+            {{range $i, $c := .Cards}}
+                <article>
+                    <header><strong>{{$c.Title}}</strong></header>
+                    {{if gt (len $c.Body) 0}}
+                        {{$c.Body}}
+                    {{else if gt (len $c.Items) 0}}
+                        <ul>
+                            {{range $c.Items}}
+                                <li>{{.}}</li>
+                            {{end}}
+                        </ul>
+                    {{else if gt (len $c.Chart.Data) 0}}
+                        <div class="chart">
+                            <canvas id="chart-{{$i}}"></canvas>
+                        </div>
+                    {{end}}
+                    {{if gt (len $c.Footer) 0}}
+                        <footer>{{$c.Footer}}</footer>
+                    {{end}}
+                </article>
+            {{end}}
+        </div>
+    </main>
+
+    <script>
+        Chart.defaults.color = 'rgba(0, 0, 0, 1.0)';
+        Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.8)';
+        Chart.defaults.font.size = 22;
+        Chart.defaults.plugins.legend.display = false;
+
+        let width, height, gradient;
+        function getGradient(ctx, chartArea, fullShadeValue, maxValue) {
+            const chartWidth = chartArea.right - chartArea.left;
+            const chartHeight = chartArea.bottom - chartArea.top;
+            if (!gradient || width !== chartWidth || height !== chartHeight) {
+                // Create the gradient because this is either the first render
+                // or the size of the chart has changed
+                width = chartWidth;
+                height = chartHeight;
+                gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+
+                maxShade = 1.0;
+                maxStep = fullShadeValue / maxValue;
+                if (maxStep > 1) {
+                    maxStep = 1;
+                    maxShade = maxValue / fullShadeValue;
+                }
+
+                gradient.addColorStop(0.00, 'rgba(0, 0, 0, 0.0)');
+                gradient.addColorStop(maxStep * 0.8,  'rgba(0, 0, 0, '+0.5*maxShade+')');
+                gradient.addColorStop(maxStep, 'rgba(0, 0, 0, '+maxShade+')');
+            }
+            return gradient;
+        }
+
+        {{range $i, $c := .Cards}}
+            {{if .Chart.Data}}
+                (async function() {
+                    const data = [
+                        {{range $hour, $value := $c.Chart.Data}}
+                            { time: '{{$hour}}h', value: {{$value}} },
+                        {{end}}
+                    ];
+
+                    max = {{$c.Chart.Options.Top}};
+                    if ({{$c.Chart.MaxValue}} > max) {
+                        max =
+                            Math.ceil({{$c.Chart.MaxValue}} / {{$c.Chart.Options.Step}})
+                            * {{$c.Chart.Options.Step}};
+                    }
+
+                    new Chart(
+                        document.getElementById('chart-{{$i}}'),
+                        {
+                            type: 'bar',
+                            data: {
+                                labels: data.map(row => row.time),
+                                datasets: [
+                                    {
+                                        data: data.map(row => row.value),
+                                        fill: true,
+                                        borderColor: 'rgba(0, 0, 0, 0.8)',
+                                        backgroundColor: function(context) {
+                                            const chart = context.chart;
+                                            const {ctx, chartArea} = chart;
+
+                                            if (!chartArea) return null;
+                                            return getGradient(ctx, chartArea, {{$c.Chart.Options.High}}, max);
+                                        },
+                                    },
+                                ],
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: { min: 0, max: max, },
+                                },
+                            },
+                        },
+                    );
+                })();
+            {{end}}
+        {{end}}
+    </script>
+    
+    <!-- Weather icons used in the header. -->
+    <svg style="display: none;">
+        <symbol id="sunny" viewBox="0 0 16 16">
+            <path d="M7.5 0v2h1V0zM4.434.822l-.868.5 1.002 1.733.866-.5zm7.132 0l-1 1.733.868.5 1-1.733zM8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3zm-6.678.566l-.5.868 1.733 1 .5-.868zm13.356 0l-1.733 1 .5.868 1.733-1zM8 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4zM0 7.5v1h2v-1zm14 0v1h2v-1zM2.555 10.566l-1.733 1 .5.868 1.733-1.002zm10.89 0l-.5.868 1.733 1 .5-.868zm-8.879 2.38l-1 1.732.868.5 1-1.733zm6.868 0l-.868.5 1 1.732.868-.5zM7.5 14v2h1v-2z"/>
+        </symbol>
+        <symbol id="cloudy" viewBox="0 0 16 16">
+            <path d="M8.64 1.668C6.482 1.67 4.648 2.999 3.772 4.9l-.061.13-.139.01C1.578 5.184 0 6.91 0 9.008 0 11.201 1.716 13 3.838 13h9.284C14.714 13 16 11.65 16 10.012a2.958 2.958 0 0 0-1.805-2.735l-.137-.058-.01-.149c-.135-2.993-2.487-5.4-5.404-5.402zm0 1c2.368.002 4.292 1.952 4.405 4.447v.01l.051.776.703.297a1.944 1.944 0 0 1 1.195 1.814c.01 1.114-.845 1.988-1.87 1.988H3.837C2.281 12 .999 10.68.999 9.008c0-1.597 1.185-2.866 2.645-2.973l.723-.05.31-.662v-.004c.728-1.58 2.213-2.65 3.961-2.65z"/>
+        </symbol>
+        <symbol id="overcast" viewBox="0 0 16 16">    
+            <path d="M9.399 6.918c-1.349.002-2.494.832-3.041 2.02l-.04.08-.085.008C4.986 9.116 4 10.194 4 11.506 4 12.876 5.072 14 6.4 14H12.2c.995 0 1.8-.843 1.8-1.867a1.85 1.85 0 0 0-1.13-1.71l-.086-.036-.01-.092C12.69 8.425 11.223 6.92 9.4 6.918zm0 1c1.272.002 2.316 1.05 2.378 2.422v.031l.076.705.627.268c.305.13.52.413.52.789 0 .5-.37.867-.799.867H6.398C5.638 13 5 12.355 5 11.506c0-.81.591-1.432 1.303-1.485l.672-.046.289-.616v-.004c.399-.866 1.193-1.435 2.13-1.437z"/>
+            <path d="M9.5 1a3.5 3.5 0 0 0-3.166 2.018 3.5 3.5 0 0 0-3.803 3.04 2 2 0 0 0 .47 3.942h.269a3.5 3.25 0 0 1 .71-1h-.982c-.564 0-1-.436-1-1a.99.99 0 0 1 .766-.97l.67-.163.088-.683a2.488 2.488 0 0 1 2.71-2.172l.706.072.3-.643A2.496 2.496 0 0 1 9.498 2a2.485 2.485 0 0 1 2.498 2.498V4.5c0 .127-.012.253-.033.379l-.16.969.965.18A1.489 1.489 0 0 1 13.997 7.5c0 .84-.66 1.5-1.5 1.5h-.498v1h.5a2.5 2.5 0 0 0 .453-4.957c.03-.18.045-.361.047-.543a3.5 3.5 0 0 0-3.5-3.5z"/>
+        </symbol>
+        <symbol id="foggy" viewBox="0 0 16 16">
+            <path d="M8.642.668C6.484.67 4.65 1.999 3.774 3.9l-.061.13-.139.01C1.58 4.184.002 5.91.002 8.008c0 .727.201 1.403.531 1.992h1.201a3.057 3.057 0 0 1-.732-1.992c0-1.597 1.184-2.866 2.644-2.973l.723-.05.31-.663v-.004c.729-1.58 2.213-2.649 3.961-2.65 2.368.002 4.292 1.952 4.405 4.447v.01l.05.776.704.296a1.944 1.944 0 0 1 1.195 1.815c.01 1.114-.846 1.988-1.871 1.988H0v1h13.122c1.591 0 2.877-1.35 2.877-2.988a2.958 2.958 0 0 0-1.805-2.735l-.137-.058-.01-.149C13.912 3.077 11.561.67 8.643.668zM.002 13v1h16v-1zm0 2v1h16v-1z"/>
+        </symbol>
+        <symbol id="rainy" viewBox="0 0 16 16">
+            <path d="M8.005 14a2.502 2.502 0 0 1-2.375-3.286c0-.025.017-.051.023-.076.063-.21.998-3.275 2.354-6.023v.005c1.448 3 2.368 6.094 2.368 6.094A2.502 2.502 0 0 1 8 14zM13.5 9a1.5 1.5 0 0 1-1.424-1.97c0-.016.015-.031.015-.046.038-.127.599-1.965 1.412-3.613v.002c.868 1.8 1.42 3.656 1.42 3.656a1.5 1.5 0 0 1-1.425 1.97zm-11 0a1.5 1.5 0 0 1-1.424-1.97c0-.016.015-.032.015-.046.038-.127.599-1.965 1.412-3.613v.002c.868 1.8 1.42 3.656 1.42 3.656a1.5 1.5 0 0 1-1.425 1.97z"/>
+        </symbol>
+        <symbol id="stormy" viewBox="0 0 16 16">
+            <path d="M8.56.084C6.672.085 5.068 1.249 4.301 2.912l-.055.113-.121.01C2.38 3.162 1 4.672 1 6.508 1 8.427 2.5 10 4.357 10h8.125C13.874 10 15 8.818 15 7.385c0-1.087-.653-2-1.578-2.393l-.121-.05-.01-.13C13.172 2.194 11.115.086 8.562.084zm0 1c2.004.001 3.635 1.652 3.731 3.773v.016l.06.748.677.291v.002c.57.242.973.785.973 1.47 0 .91-.692 1.616-1.518 1.616H4.36C3.069 9 2 7.905 2 6.508c0-1.334.988-2.388 2.198-2.477l.705-.049.305-.648v-.002c.618-1.343 1.872-2.247 3.351-2.248z"/>
+            <path d="M6.67 9l-.26 3.5h1.613l-.38 3.5 2.767-5H8.5l.324-2z"/>
+        </symbol>
+        <symbol id="snowy" viewBox="0 0 16 16">
+            <path d="M8.56.084C6.672.085 5.068 1.249 4.301 2.912l-.055.113-.121.01C2.38 3.162 1 4.672 1 6.508 1 8.427 2.5 10 4.357 10h8.125C13.874 10 15 8.818 15 7.385c0-1.087-.653-2-1.578-2.393l-.121-.05-.01-.13C13.172 2.194 11.115.086 8.562.084zm0 1c2.004.001 3.635 1.652 3.731 3.773v.016l.06.748.677.291v.002c.57.242.973.785.973 1.47 0 .91-.692 1.616-1.518 1.616H4.36C3.069 9 2 7.905 2 6.508c0-1.334.988-2.388 2.198-2.477l.705-.049.305-.648v-.002c.618-1.343 1.872-2.247 3.351-2.248z"/>
+            <path d="M9 11.5l-1 .2v1.234l-1.155-.667-.5.866L7.5 13.8l-1.155.667.5.866L8 14.666V16h1v-1.334l1.155.667.5-.866L9.5 13.8l1.155-.667-.5-.866L9 12.934zm-4.516-.599l-.688.138v.85L3 11.429l-.344.597.795.46-.795.458.344.597.796-.46V14h.688v-.919l.796.46.344-.597-.795-.459.795-.46-.344-.596-.796.46zm9.016-.458l-.79.158v.975l-.914-.527-.395.685.913.527-.913.527.395.685.914-.528V14h.79v-1.055l.913.528.396-.685-.914-.527.914-.527-.396-.685-.913.527z"/>
+        </symbol>
+    </svg>
+</body>
