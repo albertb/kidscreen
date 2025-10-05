@@ -91,7 +91,7 @@ func DevRender(header Header, cards []Card, addr string) {
 		}
 	})
 	go func() { http.ListenAndServe(addr, mux) }()
-	fmt.Printf("Server running on %s\nPress enter to stop", addr)
+	fmt.Printf("Server running on %s\nPress enter to stop\n", addr)
 	fmt.Scanln()
 }
 

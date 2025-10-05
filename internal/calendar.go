@@ -158,11 +158,8 @@ func fetchCalendars(options []CalendarOptions) (calendar, error) {
 				continue
 			}
 
-			fmt.Println("Event:", e.Summary, "Start:", e.Start)
-
 			// Only consider events that match the attendees filter.
 			if !c.MatchesFilter(e) {
-				fmt.Println("  (skipping, doesn't match filter)")
 				continue
 			}
 
@@ -192,9 +189,6 @@ func fetchCalendars(options []CalendarOptions) (calendar, error) {
 	}
 	slices.SortFunc(calendar.Today, byStart)
 	slices.SortFunc(calendar.Tomorrow, byStart)
-
-	fmt.Println("Today: ", calendar.Today)
-	fmt.Println("Tomorrow: ", calendar.Tomorrow)
 
 	return calendar, nil
 }
