@@ -2,6 +2,8 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"math/rand"
 	"strings"
 	"sync"
@@ -15,16 +17,18 @@ type LatLng struct {
 }
 
 type WeatherOptions struct {
-	Location      LatLng
-	RelevantHours HoursOptions
-	Chart         ChartOptions
+	Location         LatLng
+	MinDiffThreshold int
+	RelevantHours    HoursOptions
+	Chart            ChartOptions
 }
 
 func (c Config) GetWeatherOptions() WeatherOptions {
 	return WeatherOptions{
-		Location:      LatLng(c.Weather.Location),
-		RelevantHours: c.Weather.Precipitations.Hours.ToHoursOptions(),
-		Chart:         c.Weather.Precipitations.Chart.ToChartOptions(),
+		Location:         LatLng(c.Weather.Location),
+		MinDiffThreshold: c.Weather.MinDiffThreshold,
+		RelevantHours:    c.Weather.Precipitations.Hours.ToHoursOptions(),
+		Chart:            c.Weather.Precipitations.Chart.ToChartOptions(),
 	}
 }
 
@@ -47,7 +51,7 @@ func (w *WeatherInfo) Load() error {
 }
 
 // NewWeatherCardAndInfo creates a new weather Card and WeatherInfo using the given latitude and longitude.
-func NewWeatherCardAndInfo(options WeatherOptions) (Card, WeatherInfo) {
+func NewWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 	var once sync.Once
 	var weather weatherData
 	var err error
@@ -61,7 +65,7 @@ func NewWeatherCardAndInfo(options WeatherOptions) (Card, WeatherInfo) {
 }
 
 // NewFakeWeatherCardAndInfo creates a new weather Card and WeatherInfo with fake data for testing purposes.
-func NewFakeWeatherCardAndInfo(options WeatherOptions) (Card, WeatherInfo) {
+func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 	return makeWeatherCardAndInfo(options, func() (weatherData, error) {
 		condition := func() string {
 			nth := rand.Int() % len(conditionToIcon)
@@ -75,37 +79,70 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) (Card, WeatherInfo) {
 			return "clear-sky"
 		}()
 
-		max := rand.Int()%50 - 20
-		min := max - (rand.Int() % 15)
+		maxToday := rand.Int()%50 - 20
+		minToday := maxToday - (rand.Int() % 15)
+
+		maxYesterday := maxToday + 15 - (rand.Int() % 30)
+		minYesterday := maxYesterday - (rand.Int() % 15)
+
 		return weatherData{
-			MaxTemperature:                   max,
-			MinTemperature:                   min,
+			TemperatureToday: temperatureData{
+				Max: maxToday,
+				Min: minToday,
+			},
+			TemperatureYesterday: temperatureData{
+				Max: maxYesterday,
+				Min: minYesterday,
+			},
 			Condition:                        condition,
 			HourlyPrecipitationProbabilities: getBiasedSmoothRandomValues(24, 10, 100),
 		}, nil
 	})
 }
 
-func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherData, error)) (Card, WeatherInfo) {
-	return Card{
-			Title:    "Précipitations",
-			Type:     CardTypeChart,
-			Priority: 60,
-			loader: func(c *Card) error {
-				c.Chart = Chart{}
-				data, err := getWeather()
-				if err != nil {
-					return err
-				}
+func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherData, error)) ([]Card, WeatherInfo) {
+	return []Card{
+			{
+				Title:    "Précipitations",
+				Type:     CardTypeChart,
+				Priority: 60,
+				loader: func(c *Card) error {
+					c.Chart = Chart{}
+					data, err := getWeather()
+					if err != nil {
+						return err
+					}
 
-				c.Chart = Chart{
-					Data:    data.HourlyPrecipitationProbabilities,
-					Hours:   options.RelevantHours,
-					Options: options.Chart,
-				}
-				return nil
+					c.Chart = Chart{
+						Data:    data.HourlyPrecipitationProbabilities,
+						Hours:   options.RelevantHours,
+						Options: options.Chart,
+					}
+					return nil
+				},
 			},
-		}, WeatherInfo{
+			{
+				Title:    "Température",
+				Type:     CardTypeText,
+				Priority: 60,
+				loader: func(c *Card) error {
+					data, err := getWeather()
+					if err != nil {
+						return err
+					}
+
+					diff := data.TemperatureToday.Max - data.TemperatureYesterday.Max
+
+					if diff > options.MinDiffThreshold {
+						c.Body = template.HTML(fmt.Sprintf("%d°C plus chaud qu'hier.", diff))
+					} else if diff < -options.MinDiffThreshold {
+						c.Body = template.HTML(fmt.Sprintf("%d°C plus froid qu'hier.", -diff))
+					}
+					return nil
+				},
+			},
+		},
+		WeatherInfo{
 			loader: func(w *WeatherInfo) error {
 				data, err := getWeather()
 				if err != nil {
@@ -113,8 +150,8 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 				}
 
 				w.Condition = conditionToIcon[data.Condition]
-				w.MaxTemperature = data.MaxTemperature
-				w.MinTemperature = data.MinTemperature
+				w.MaxTemperature = data.TemperatureToday.Max
+				w.MinTemperature = data.TemperatureToday.Min
 				return nil
 			},
 		}
@@ -122,9 +159,14 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 
 type weatherData struct {
 	Condition                        string
-	MaxTemperature                   int
-	MinTemperature                   int
+	TemperatureToday                 temperatureData
+	TemperatureYesterday             temperatureData
 	HourlyPrecipitationProbabilities []int
+}
+
+type temperatureData struct {
+	Max int
+	Min int
 }
 
 func fetchWeatherData(location LatLng) (weatherData, error) {
@@ -143,6 +185,7 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 			openmeteo.HourlyPrecipitationProbability,
 		},
 		ForecastDays: openmeteo.Int(1),
+		PastDays:     openmeteo.Int(1),
 	}
 
 	m := openmeteo.New()
@@ -168,9 +211,11 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 	}
 
 	result.Condition = openmeteo.WeatherCodeName(response.Daily.Condition[0])
-	result.MaxTemperature = int(response.Daily.MaxTemps[0])
-	result.MinTemperature = int(response.Daily.MinTemps[0])
-	result.HourlyPrecipitationProbabilities = response.Hourly.PrecipitationProbs
+	result.TemperatureYesterday.Max = int(response.Daily.MaxTemps[0])
+	result.TemperatureYesterday.Min = int(response.Daily.MinTemps[0])
+	result.TemperatureToday.Max = int(response.Daily.MaxTemps[1])
+	result.TemperatureToday.Min = int(response.Daily.MinTemps[1])
+	result.HourlyPrecipitationProbabilities = response.Hourly.PrecipitationProbs[24:]
 
 	return result, nil
 }

@@ -46,15 +46,15 @@ func Run(config Config, dev, fake bool, img, addr string) error {
 	}()...)
 
 	var weather WeatherInfo
-	cards = append(cards, func() Card {
-		var card Card
+	cards = append(cards, func() []Card {
+		var cards []Card
 		if fake {
-			card, weather = NewFakeWeatherCardAndInfo(config.GetWeatherOptions())
-			return card
+			cards, weather = NewFakeWeatherCardAndInfo(config.GetWeatherOptions())
+			return cards
 		}
-		card, weather = NewWeatherCardAndInfo(config.GetWeatherOptions())
-		return card
-	}())
+		cards, weather = NewWeatherCardAndInfo(config.GetWeatherOptions())
+		return cards
+	}()...)
 
 	cards = append(cards, func() Card {
 		return NewPictureCard(config.GetPictureOptions())

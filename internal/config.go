@@ -21,9 +21,10 @@ type Calendar struct {
 }
 
 type Weather struct {
-	Location       Location       `yaml:"location"`
-	Precipitations Precipitations `yaml:"precipitations"`
-	AirQuality     AirQuality     `yaml:"airquality"`
+	Location         Location       `yaml:"location"`
+	Precipitations   Precipitations `yaml:"precipitations"`
+	AirQuality       AirQuality     `yaml:"airquality"`
+	MinDiffThreshold int            `yaml:"min_diff_threshold"` // The minimum temperature difference between yesterday and today to display a message about it.
 }
 
 type Location struct {
@@ -97,6 +98,7 @@ func defaultConfig() Config {
 					High: 100,
 				},
 			},
+			MinDiffThreshold: 7,
 		},
 	}
 }
