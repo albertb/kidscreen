@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"math"
 	"math/rand"
 	"strings"
 	"sync"
@@ -17,18 +18,22 @@ type LatLng struct {
 }
 
 type WeatherOptions struct {
-	Location         LatLng
-	MinDiffThreshold int
-	RelevantHours    HoursOptions
-	Chart            ChartOptions
+	Location             LatLng
+	MinDiffThreshold     int
+	MinRainfallThreshold int // mm
+	MinSnowfallThreshold int // cm
+	RelevantHours        HoursOptions
+	Chart                ChartOptions
 }
 
 func (c Config) GetWeatherOptions() WeatherOptions {
 	return WeatherOptions{
-		Location:         LatLng(c.Weather.Location),
-		MinDiffThreshold: c.Weather.MinDiffThreshold,
-		RelevantHours:    c.Weather.Precipitations.Hours.ToHoursOptions(),
-		Chart:            c.Weather.Precipitations.Chart.ToChartOptions(),
+		Location:             LatLng(c.Weather.Location),
+		MinDiffThreshold:     c.Weather.MinDiffThreshold,
+		MinRainfallThreshold: c.Weather.MinRainfallThreshold,
+		MinSnowfallThreshold: c.Weather.MinSnowfallThreshold,
+		RelevantHours:        c.Weather.Precipitations.Hours.ToHoursOptions(),
+		Chart:                c.Weather.Precipitations.Chart.ToChartOptions(),
 	}
 }
 
@@ -85,6 +90,11 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 		maxYesterday := maxToday + 15 - (rand.Int() % 30)
 		minYesterday := maxYesterday - (rand.Int() % 15)
 
+		rainfall := math.Abs(rand.NormFloat64())*2.0 + 2.0
+		snowfall := math.Abs(rand.NormFloat64())*2.0 + 2.0
+
+		fmt.Println("rain", rainfall, "snow", snowfall)
+
 		return weatherData{
 			TemperatureToday: temperatureData{
 				Max: maxToday,
@@ -96,6 +106,8 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 			},
 			Condition:                        condition,
 			HourlyPrecipitationProbabilities: getBiasedSmoothRandomValues(24, 10, 100),
+			Rainfall:                         rainfall,
+			Snowfall:                         snowfall,
 		}, nil
 	})
 }
@@ -122,7 +134,7 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 				},
 			},
 			{
-				Title:    "Température",
+				Title:    "Météo",
 				Type:     CardTypeText,
 				Priority: 60,
 				loader: func(c *Card) error {
@@ -130,14 +142,23 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 					if err != nil {
 						return err
 					}
+					sb := strings.Builder{}
+
+					if data.Rainfall > float64(options.MinRainfallThreshold) {
+						sb.WriteString(fmt.Sprintf("%3.1f mm de pluie<br>", data.Rainfall))
+					}
+					if data.Snowfall > float64(options.MinSnowfallThreshold) {
+						sb.WriteString(fmt.Sprintf("%3.1f cm de neige<br>", data.Snowfall))
+					}
 
 					diff := data.TemperatureToday.Max - data.TemperatureYesterday.Max
-
 					if diff > options.MinDiffThreshold {
-						c.Body = template.HTML(fmt.Sprintf("%d°C plus chaud qu'hier.", diff))
+						sb.WriteString(fmt.Sprintf("%d°C plus chaud qu'hier", diff))
 					} else if diff < -options.MinDiffThreshold {
-						c.Body = template.HTML(fmt.Sprintf("%d°C plus froid qu'hier.", -diff))
+						sb.WriteString(fmt.Sprintf("%d°C plus froid qu'hier", -diff))
 					}
+
+					c.Body = template.HTML(sb.String())
 					return nil
 				},
 			},
@@ -162,6 +183,8 @@ type weatherData struct {
 	TemperatureToday                 temperatureData
 	TemperatureYesterday             temperatureData
 	HourlyPrecipitationProbabilities []int
+	Rainfall                         float64
+	Snowfall                         float64
 }
 
 type temperatureData struct {
@@ -180,6 +203,8 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 			openmeteo.DailyWeatherCode,
 			openmeteo.DailyTemperature2mMin,
 			openmeteo.DailyTemperature2mMax,
+			openmeteo.DailyShowersSum,
+			openmeteo.DailySnowfallSum,
 		},
 		Hourly: &[]string{
 			openmeteo.HourlyPrecipitationProbability,
@@ -199,6 +224,8 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 			Condition []int     `json:"weathercode"`
 			MinTemps  []float64 `json:"temperature_2m_min"`
 			MaxTemps  []float64 `json:"temperature_2m_max"`
+			Rainfall  []float64 `json:"showers_sum"`
+			Snowfall  []float64 `json:"snowfall_sum"`
 		} `json:"daily"`
 		Hourly struct {
 			PrecipitationProbs []int `json:"precipitation_probability"`
@@ -216,6 +243,8 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 	result.TemperatureToday.Max = int(response.Daily.MaxTemps[1])
 	result.TemperatureToday.Min = int(response.Daily.MinTemps[1])
 	result.HourlyPrecipitationProbabilities = response.Hourly.PrecipitationProbs[24:]
+	result.Rainfall = response.Daily.Rainfall[0]
+	result.Snowfall = response.Daily.Snowfall[0]
 
 	return result, nil
 }
