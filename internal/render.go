@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
-	"time"
 
 	"github.com/chromedp/chromedp"
 )
@@ -130,13 +129,10 @@ func Render(header Header, cards []Card) ([]byte, error) {
 	if err := chromedp.Run(ctx,
 		chromedp.EmulateViewport(1280, 720),
 		chromedp.Navigate(ts.URL),
-		chromedp.Sleep(1*time.Second),
+		chromedp.WaitReady("main"),
 		chromedp.OuterHTML("html", &body),
 		chromedp.CaptureScreenshot(&buf),
 	); err != nil {
-		fmt.Println("Press enter to stop")
-		fmt.Scanln()
-
 		return []byte{}, fmt.Errorf("failed to capture screenshot: %w", err)
 	}
 
