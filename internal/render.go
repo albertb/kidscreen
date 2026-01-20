@@ -114,7 +114,12 @@ func Render(header Header, cards []Card) ([]byte, error) {
 	}))
 	defer ts.Close()
 
-	allocCtx, cancel := chromedp.NewRemoteAllocator(context.Background(), "ws://127.0.0.1:9222")
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.NoSandbox,
+		chromedp.Headless,
+		chromedp.DisableGPU,
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
 
 	ctx, cancel := chromedp.NewContext(allocCtx)
