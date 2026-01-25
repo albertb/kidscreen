@@ -117,7 +117,7 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 			{
 				Title:    "Précipitations",
 				Type:     CardTypeChart,
-				Priority: 60,
+				Priority: 65,
 				loader: func(c *Card) error {
 					c.Chart = Chart{}
 					data, err := getWeather()

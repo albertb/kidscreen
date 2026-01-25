@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 
 <head>
@@ -102,10 +103,13 @@
         Chart.defaults.font.size = 22;
         Chart.defaults.plugins.legend.display = false;
 
-        let width, height, gradient;
-        function getGradient(ctx, chartArea, fullShadeValue, maxValue) {
+        let width, height;
+        const gradients = new Map();
+
+        function getGradient(name, ctx, chartArea, fullShadeValue, maxValue) {
             const chartWidth = chartArea.right - chartArea.left;
             const chartHeight = chartArea.bottom - chartArea.top;
+            let gradient = gradients[name];
             if (!gradient || width !== chartWidth || height !== chartHeight) {
                 // Create the gradient because this is either the first render
                 // or the size of the chart has changed
@@ -120,9 +124,11 @@
                     maxShade = maxValue / fullShadeValue;
                 }
 
-                gradient.addColorStop(0.00, 'rgba(0, 0, 0, 0.0)');
-                gradient.addColorStop(maxStep * 0.8,  'rgba(0, 0, 0, '+0.5*maxShade+')');
+                gradient.addColorStop(0.00, 'rgba(0, 0, 0,'+0.2*maxShade+')');
+                gradient.addColorStop(maxStep * 0.5,  'rgba(0, 0, 0, '+0.75*maxShade+')');
                 gradient.addColorStop(maxStep, 'rgba(0, 0, 0, '+maxShade+')');
+
+                gradients[name] = gradient;
             }
             return gradient;
         }
@@ -159,7 +165,7 @@
                                             const {ctx, chartArea} = chart;
 
                                             if (!chartArea) return null;
-                                            return getGradient(ctx, chartArea, {{$c.Chart.Options.High}}, max);
+                                            return getGradient('chart-{{$i}}', ctx, chartArea, {{$c.Chart.Options.High}}, max);
                                         },
                                     },
                                 ],
