@@ -149,17 +149,17 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 					sb := strings.Builder{}
 
 					if data.Rainfall > float64(options.MinRainfallThreshold) {
-						sb.WriteString(fmt.Sprintf("%3.1f mm de pluie<br>", data.Rainfall))
+						fmt.Fprintf(&sb, "%3.1f mm de pluie<br>", data.Rainfall)
 					}
 					if data.Snowfall > float64(options.MinSnowfallThreshold) {
-						sb.WriteString(fmt.Sprintf("%3.1f cm de neige<br>", data.Snowfall))
+						fmt.Fprintf(&sb, "%3.1f cm de neige<br>", data.Snowfall)
 					}
 
 					diff := data.TemperatureToday.Max - data.TemperatureYesterday.Max
 					if diff > options.MinDiffThreshold {
-						sb.WriteString(fmt.Sprintf("%d°C plus chaud qu'hier", diff))
+						fmt.Fprintf(&sb, "%d°C plus chaud qu'hier", diff)
 					} else if diff < -options.MinDiffThreshold {
-						sb.WriteString(fmt.Sprintf("%d°C plus froid qu'hier", -diff))
+						fmt.Fprintf(&sb, "%d°C plus froid qu'hier", -diff)
 					}
 
 					c.Body = template.HTML(sb.String())
