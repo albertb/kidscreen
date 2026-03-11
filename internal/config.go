@@ -30,8 +30,8 @@ type Weather struct {
 }
 
 type Location struct {
-	Lat float32 `yaml:"lat"`
-	Lng float32 `yaml:"lng"`
+	Lat float64 `yaml:"lat"`
+	Lng float64 `yaml:"lng"`
 }
 
 type Precipitations struct {

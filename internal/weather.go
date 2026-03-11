@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"html/template"
 	"math"
@@ -9,12 +9,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/innotechdevops/openmeteo"
+	//"github.com/innotechdevops/openmeteo"
+	"github.com/hectormalot/omgo"
 )
 
 type LatLng struct {
-	Lat float32
-	Lng float32
+	Lat float64
+	Lng float64
 }
 
 type WeatherOptions struct {
@@ -77,11 +78,11 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 			i := 0
 			for key := range conditionToIcon {
 				if i == nth {
-					return key
+					return conditionToIcon[key]
 				}
 				i++
 			}
-			return "clear-sky"
+			return "sunny"
 		}()
 
 		maxToday := rand.Int()%50 - 20
@@ -93,8 +94,6 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 		rainfall := math.Abs(rand.NormFloat64())*2.0 + 2.0
 		snowfall := math.Abs(rand.NormFloat64())*2.0 + 2.0
 
-		fmt.Println("rain", rainfall, "snow", snowfall)
-
 		return weatherData{
 			TemperatureToday: temperatureData{
 				Max: maxToday,
@@ -105,7 +104,7 @@ func NewFakeWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
 				Min: minYesterday,
 			},
 			Condition:                        condition,
-			HourlyPrecipitationProbabilities: getBiasedSmoothRandomValues(24, 10, 100),
+			HourlyPrecipitationProbabilities: getBiasedSmoothRandomValues(24, 10., 100.),
 			Rainfall:                         rainfall,
 			Snowfall:                         snowfall,
 		}, nil
@@ -125,8 +124,13 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 						return err
 					}
 
+					var probs []int
+					for _, prob := range data.HourlyPrecipitationProbabilities {
+						probs = append(probs, int(prob))
+					}
+
 					c.Chart = Chart{
-						Data:    data.HourlyPrecipitationProbabilities,
+						Data:    probs,
 						Hours:   options.RelevantHours,
 						Options: options.Chart,
 					}
@@ -170,7 +174,7 @@ func makeWeatherCardAndInfo(options WeatherOptions, getWeather func() (weatherDa
 					return err
 				}
 
-				w.Condition = conditionToIcon[data.Condition]
+				w.Condition = data.Condition
 				w.MaxTemperature = data.TemperatureToday.Max
 				w.MinTemperature = data.TemperatureToday.Min
 				return nil
@@ -182,7 +186,7 @@ type weatherData struct {
 	Condition                        string
 	TemperatureToday                 temperatureData
 	TemperatureYesterday             temperatureData
-	HourlyPrecipitationProbabilities []int
+	HourlyPrecipitationProbabilities []float64
 	Rainfall                         float64
 	Snowfall                         float64
 }
@@ -195,87 +199,71 @@ type temperatureData struct {
 func fetchWeatherData(location LatLng) (weatherData, error) {
 	var result weatherData
 
-	param := openmeteo.Parameter{
-		Latitude:  openmeteo.Float32(location.Lat),
-		Longitude: openmeteo.Float32(location.Lng),
-		Timezone:  openmeteo.String("auto"),
-		Daily: &[]string{
-			openmeteo.DailyWeatherCode,
-			openmeteo.DailyTemperature2mMin,
-			openmeteo.DailyTemperature2mMax,
-			openmeteo.DailyShowersSum,
-			openmeteo.DailySnowfallSum,
-		},
-		Hourly: &[]string{
-			openmeteo.HourlyPrecipitationProbability,
-		},
-		ForecastDays: openmeteo.Int(1),
-		PastDays:     openmeteo.Int(1),
-	}
+	client := omgo.NewClient()
 
-	m := openmeteo.New()
-	resp, err := m.Execute(param)
+	req, err := omgo.NewForecastRequest(location.Lat, location.Lng)
 	if err != nil {
 		return result, err
 	}
 
-	var response struct {
-		Daily struct {
-			Condition []int     `json:"weathercode"`
-			MinTemps  []float64 `json:"temperature_2m_min"`
-			MaxTemps  []float64 `json:"temperature_2m_max"`
-			Rainfall  []float64 `json:"showers_sum"`
-			Snowfall  []float64 `json:"snowfall_sum"`
-		} `json:"daily"`
-		Hourly struct {
-			PrecipitationProbs []int `json:"precipitation_probability"`
-		} `json:"hourly"`
-	}
+	req.
+		WithDaily(
+			omgo.DailyWeatherCode,
+			omgo.DailyTemperature2mMin,
+			omgo.DailyTemperature2mMax,
+			omgo.DailyShowersSum,
+			omgo.DailySnowfallSum).
+		WithHourly(
+			omgo.HourlyPrecipitationProbability).
+		WithForecastDays(1).
+		WithPastDays(1).
+		WithTimezone("auto")
 
-	err = json.NewDecoder(strings.NewReader(resp)).Decode(&response)
+	weather, err := client.Forecast(context.Background(), req)
 	if err != nil {
 		return result, err
 	}
 
-	result.Condition = openmeteo.WeatherCodeName(response.Daily.Condition[0])
-	result.TemperatureYesterday.Max = int(response.Daily.MaxTemps[0])
-	result.TemperatureYesterday.Min = int(response.Daily.MinTemps[0])
-	result.TemperatureToday.Max = int(response.Daily.MaxTemps[1])
-	result.TemperatureToday.Min = int(response.Daily.MinTemps[1])
-	result.HourlyPrecipitationProbabilities = response.Hourly.PrecipitationProbs[24:]
-	result.Rainfall = response.Daily.Rainfall[0]
-	result.Snowfall = response.Daily.Snowfall[0]
+	result.Condition = conditionToIcon[weather.Daily.WeatherCode[1]]
+	result.TemperatureYesterday.Max = int(weather.Daily.Temperature2mMax[0])
+	result.TemperatureYesterday.Min = int(weather.Daily.Temperature2mMin[0])
+	result.TemperatureToday.Max = int(weather.Daily.Temperature2mMax[1])
+	result.TemperatureToday.Min = int(weather.Daily.Temperature2mMin[1])
+	result.HourlyPrecipitationProbabilities = weather.Hourly.PrecipitationProbability[24:]
+	result.Rainfall = weather.Daily.ShowersSum[1]
+	result.Snowfall = weather.Daily.SnowfallSum[1]
 
 	return result, nil
 }
 
-// Map of Open-Meteo weather condition names to the SVG names in the HTML.
-var conditionToIcon = map[string]string{
-	"clear-sky":                          "sunny",
-	"mainly-clear":                       "sunny",
-	"partly-cloudy":                      "cloudy",
-	"overcast":                           "overcast",
-	"fog":                                "foggy",
-	"depositing-rime-fog":                "foggy",
-	"drizzle-light":                      "rainy",
-	"drizzle-moderate":                   "rainy",
-	"drizzle-dense":                      "rainy",
-	"freezing-drizzle-light":             "rainy",
-	"freezing-drizzle-dense":             "rainy",
-	"rain-slight":                        "rainy",
-	"rain-moderate":                      "rainy",
-	"rain-heavy":                         "rainy",
-	"freezing-rain-light":                "rainy",
-	"freezing-rain-heavy":                "rainy",
-	"snow-fall-slight":                   "snowy",
-	"snow-fall-moderate":                 "snowy",
-	"snow-fall-heavy":                    "snowy",
-	"snow-grains":                        "snowy",
-	"rain-showers-slight":                "rainy",
-	"rain-showers-moderate":              "rainy",
-	"rain-showers-violent":               "rainy",
-	"snow-showers-slight":                "snowy",
-	"snow-showers-heavy":                 "snowy",
-	"thunderstorm-slight-or-moderate":    "stormy",
-	"thunderstorm-slight-and-heavy-hail": "stormy",
+// Map of open-meteo weather condition codes to the SVG names in the HTML.
+var conditionToIcon = map[omgo.WeatherCode]string{
+	omgo.ClearSky:                   "sunny",
+	omgo.MainlyClear:                "sunny",
+	omgo.PartlyCloudy:               "cloudy",
+	omgo.Overcast:                   "overcast",
+	omgo.Fog:                        "foggy",
+	omgo.DepositingRimeFog:          "foggy",
+	omgo.DrizzleLight:               "rainy",
+	omgo.DrizzleModerate:            "rainy",
+	omgo.DrizzleDense:               "rainy",
+	omgo.FreezingDrizzleLight:       "rainy",
+	omgo.FreezingDrizzleDense:       "rainy",
+	omgo.RainSlight:                 "rainy",
+	omgo.RainModerate:               "rainy",
+	omgo.RainHeavy:                  "rainy",
+	omgo.FreezingRainLight:          "rainy",
+	omgo.FreezingRainHeavy:          "rainy",
+	omgo.SnowFallSlight:             "snowy",
+	omgo.SnowFallModerate:           "snowy",
+	omgo.SnowFallHeavy:              "snowy",
+	omgo.SnowGrains:                 "snowy",
+	omgo.RainShowersSlight:          "rainy",
+	omgo.RainShowersModerate:        "rainy",
+	omgo.RainShowersViolent:         "rainy",
+	omgo.SnowShowersSlight:          "snowy",
+	omgo.SnowShowersHeavy:           "snowy",
+	omgo.ThunderstormSlight:         "stormy",
+	omgo.ThunderstormWithHailSlight: "stormy",
+	omgo.ThunderstormWithHailHeavy:  "stormy",
 }
