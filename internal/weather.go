@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	//"github.com/innotechdevops/openmeteo"
 	"github.com/hectormalot/omgo"
 )
 
@@ -203,7 +202,7 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 
 	req, err := omgo.NewForecastRequest(location.Lat, location.Lng)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("failed to create open-meteo forecast request: %w", err)
 	}
 
 	req.
@@ -221,7 +220,7 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 
 	weather, err := client.Forecast(context.Background(), req)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("open-meteo forecast request failed: %w", err)
 	}
 
 	result.Condition = conditionToIcon[weather.Daily.WeatherCode[1]]

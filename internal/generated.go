@@ -112,7 +112,7 @@ func fetchCompletion(client openai.Client, prompt string) (string, error) {
 		},
 	)
 	if err != nil {
-		return completion, err
+		return completion, fmt.Errorf("openai chat completion request failed: %w", err)
 	}
 	return response.Choices[0].Message.Content, nil
 }

@@ -128,7 +128,7 @@ func fetchCalendars(options []CalendarOptions) (calendar, error) {
 	for _, c := range options {
 		resp, err := http.Get(c.URL)
 		if err != nil {
-			return calendar, err
+			return calendar, fmt.Errorf("failed to get calendar: %w", err)
 		}
 		defer resp.Body.Close()
 

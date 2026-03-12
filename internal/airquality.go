@@ -92,7 +92,7 @@ func fetchAirQualityData(location LatLng) ([]int, error) {
 
 	if err := json.Unmarshal(resp.Data, &response); err != nil {
 		fmt.Println(string(resp.Data))
-		return result, err
+		return result, fmt.Errorf("failed to unmarshal air quality JSON: %w", err)
 	}
 	return response.Hourly.AQI, nil
 }
