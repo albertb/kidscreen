@@ -7,7 +7,6 @@ require (
 	github.com/chromedp/chromedp v0.14.2
 	github.com/hectormalot/omgo v0.2.1
 	github.com/openai/openai-go v1.12.0
-	github.com/prongbang/callx v1.2.3
 	go.yaml.in/yaml/v4 v4.0.0-rc.2
 )
 

@@ -3,9 +3,9 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"sync"
-
-	"github.com/prongbang/callx"
 )
 
 type AirQualityOptions struct {
@@ -69,19 +69,24 @@ func makeAirQualityCard(options AirQualityOptions, getAQI func() ([]int, error))
 func fetchAirQualityData(location LatLng) ([]int, error) {
 	var result []int
 
-	client := callx.New(callx.Config{
-		BaseURL: "https://air-quality-api.open-meteo.com",
-		Timeout: 10,
-	})
-
-	path := fmt.Sprintf(
-		"/v1/air-quality?latitude=%f&longitude=%f&hourly=us_aqi&forecast_days=1&timezone=auto",
+	url := fmt.Sprintf(
+		"https://air-quality-api.open-meteo.com/v1/air-quality?latitude=%f&longitude=%f&hourly=us_aqi&forecast_days=1&timezone=auto",
 		location.Lat, location.Lng,
 	)
 
-	resp := client.Get(path)
-	if resp.Code != 200 {
-		return result, fmt.Errorf("failed to get air quality data: %s", string(resp.Data))
+	resp, err := http.Get(url)
+	if err != nil {
+		return result, fmt.Errorf("failed to get air quality data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return result, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return result, fmt.Errorf("failed to get air quality data: %s", string(body))
 	}
 
 	var response struct {
@@ -90,8 +95,7 @@ func fetchAirQualityData(location LatLng) ([]int, error) {
 		} `json:"hourly"`
 	}
 
-	if err := json.Unmarshal(resp.Data, &response); err != nil {
-		fmt.Println(string(resp.Data))
+	if err := json.Unmarshal(body, &response); err != nil {
 		return result, fmt.Errorf("failed to unmarshal air quality JSON: %w", err)
 	}
 	return response.Hourly.AQI, nil
