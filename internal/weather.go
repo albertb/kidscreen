@@ -223,6 +223,17 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 		return result, fmt.Errorf("open-meteo forecast request failed: %w", err)
 	}
 
+	if len(weather.Daily.WeatherCode) < 2 ||
+		len(weather.Daily.Temperature2mMax) < 2 ||
+		len(weather.Daily.Temperature2mMin) < 2 ||
+		len(weather.Daily.ShowersSum) < 2 ||
+		len(weather.Daily.SnowfallSum) < 2 {
+		return result, fmt.Errorf("open-meteo returned fewer daily entries than expected (got %d, want 2)", len(weather.Daily.WeatherCode))
+	}
+	if len(weather.Hourly.PrecipitationProbability) < 48 {
+		return result, fmt.Errorf("open-meteo returned fewer hourly entries than expected (got %d, want 48)", len(weather.Hourly.PrecipitationProbability))
+	}
+
 	result.Condition = conditionToIcon[weather.Daily.WeatherCode[1]]
 	result.TemperatureYesterday.Max = int(weather.Daily.Temperature2mMax[0])
 	result.TemperatureYesterday.Min = int(weather.Daily.Temperature2mMin[0])

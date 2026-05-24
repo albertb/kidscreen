@@ -17,6 +17,9 @@ type HoursOptions struct {
 }
 
 func (c Chart) MaxValue() int {
+	if len(c.Data) == 0 {
+		return 0
+	}
 	return slices.Max(c.Data)
 }
 

@@ -80,6 +80,10 @@ func fetchPicture(options PictureOptions) (picture, error) {
 		labels[htmlquery.InnerText(label)] = htmlquery.SelectAttr(image, "src")
 	}
 
+	if len(labels) == 0 {
+		return pic, fmt.Errorf("no pictures found on page")
+	}
+
 	i := 0
 	nth := rand.Int() % len(labels)
 	for label, image := range labels {
