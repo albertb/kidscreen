@@ -96,19 +96,24 @@ func DevRender(header Header, cards []Card, addr string) {
 
 // Render generates a PNG image of the screen with the given header and cards.
 func Render(header Header, cards []Card) ([]byte, error) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tmpl, err := template.ParseFS(templates, "screen.go.html")
-		if err != nil {
-			log.Println(err)
-		}
+	tmpl, err := template.ParseFS(templates, "screen.go.html")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse template: %w", err)
+	}
 
+	errc := make(chan error, 1)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := assembleData(header, cards)
 		if err != nil {
 			log.Println("failed to load data:", err)
 		}
 
 		if err := tmpl.Execute(w, data); err != nil {
-			log.Println(err)
+			select {
+			case errc <- fmt.Errorf("failed to execute template: %w", err):
+			default:
+			}
 		}
 	}))
 	defer ts.Close()
@@ -133,8 +138,13 @@ func Render(header Header, cards []Card) ([]byte, error) {
 		chromedp.OuterHTML("html", &body),
 		chromedp.CaptureScreenshot(&buf),
 	); err != nil {
-		return []byte{}, fmt.Errorf("failed to capture screenshot: %w", err)
+		return nil, fmt.Errorf("failed to capture screenshot: %w", err)
 	}
 
-	return buf, nil
+	select {
+	case err := <-errc:
+		return nil, err
+	default:
+		return buf, nil
+	}
 }

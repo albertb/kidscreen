@@ -7,7 +7,7 @@ Prioritized list of commit-sized improvements.
 - [x] **Fix panic in `weather.go`**: Add bounds checks before accessing `weather.Daily.WeatherCode[1]`, temperature arrays at `[0]`/`[1]`, and `Hourly.PrecipitationProbability[24:]`.
 - [x] **Fix panic in `chart.go`**: Guard `MaxValue()` against an empty slice before calling `slices.Max()`.
 - [x] **Fix panic in `picture.go`**: Check `len(labels) > 0` before `rand.Int() % len(labels)`.
-- [ ] **Return errors from `Render()`**: Template parse/execute failures in `render.go` should be returned as errors, not just logged, so callers can detect a broken render.
+- [x] **Return errors from `Render()`**: Template parse/execute failures in `render.go` should be returned as errors, not just logged, so callers can detect a broken render.
 
 ## Priority 2 — Reliability
 
