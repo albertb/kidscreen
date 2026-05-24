@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log"
 	"math"
 	"math/rand"
 	"strings"
@@ -234,7 +235,13 @@ func fetchWeatherData(location LatLng) (weatherData, error) {
 		return result, fmt.Errorf("open-meteo returned fewer hourly entries than expected (got %d, want 48)", len(weather.Hourly.PrecipitationProbability))
 	}
 
-	result.Condition = conditionToIcon[weather.Daily.WeatherCode[1]]
+	code := weather.Daily.WeatherCode[1]
+	condition, ok := conditionToIcon[code]
+	if !ok {
+		log.Printf("unknown weather code %d, defaulting to overcast", code)
+		condition = "overcast"
+	}
+	result.Condition = condition
 	result.TemperatureYesterday.Max = int(weather.Daily.Temperature2mMax[0])
 	result.TemperatureYesterday.Min = int(weather.Daily.Temperature2mMin[0])
 	result.TemperatureToday.Max = int(weather.Daily.Temperature2mMax[1])

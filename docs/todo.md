@@ -14,7 +14,7 @@ Prioritized list of commit-sized improvements.
 - [x] **Add HTTP timeouts**: Pass a `*http.Client` with a sensible timeout (e.g. 15s) to `http.Get` calls in `calendar.go` and `picture.go`.
 - [x] **Surface failed cards to the user**: Log which card titles failed to load so the user knows what's missing, rather than silently dropping them.
 - [x] **Handle `DevRender` listen error**: Return or log errors from `http.ListenAndServe` instead of swallowing them.
-- [ ] **Handle unknown weather codes**: Log a warning when a weather code isn't in `conditionToIcon`; use a default icon rather than an empty string.
+- [x] **Handle unknown weather codes**: Log a warning when a weather code isn't in `conditionToIcon`; use a default icon rather than an empty string.
 
 ## Priority 3 — Config & Validation
 
