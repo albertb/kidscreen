@@ -125,8 +125,10 @@ type event struct {
 func fetchCalendars(options []CalendarOptions) (calendar, error) {
 	var calendar calendar
 
+	client := &http.Client{Timeout: 15 * time.Second}
+
 	for _, c := range options {
-		resp, err := http.Get(c.URL)
+		resp, err := client.Get(c.URL)
 		if err != nil {
 			return calendar, fmt.Errorf("failed to get calendar: %w", err)
 		}

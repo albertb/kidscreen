@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"html/template"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/antchfx/htmlquery"
 )
@@ -61,9 +63,16 @@ type picture struct {
 func fetchPicture(options PictureOptions) (picture, error) {
 	var pic picture
 
-	doc, err := htmlquery.LoadURL(options.PageURL)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(options.PageURL)
 	if err != nil {
 		return pic, fmt.Errorf("failed to load animal page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	doc, err := htmlquery.Parse(resp.Body)
+	if err != nil {
+		return pic, fmt.Errorf("failed to parse animal page: %w", err)
 	}
 
 	images, err := htmlquery.QueryAll(doc, options.ImagesXPath)
