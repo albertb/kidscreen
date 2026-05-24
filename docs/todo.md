@@ -18,7 +18,7 @@ Prioritized list of commit-sized improvements.
 
 ## Priority 3 — Config & Validation
 
-- [ ] **Implement `config.validate()`**: Validate non-empty calendar URLs, lat/lng in range, non-negative thresholds. Currently a no-op TODO stub.
+- [x] **Implement `config.validate()`**: Validate non-empty calendar URLs, lat/lng in range, non-negative thresholds. Currently a no-op TODO stub.
 - [ ] **Make viewport size configurable**: Add a `render.width`/`render.height` config field instead of hardcoding `1280x720` in `render.go`.
 - [ ] **Make OpenAI model configurable**: Add a `generated.model` config field instead of hardcoding `GPT4o` in `generated.go`.
 - [ ] **Compile attendee regexp at startup**: Move `regexp.MustCompile` out of the card loader closure in `calendar.go` — it's currently recompiled on every card load.

@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -119,6 +121,43 @@ func ReadConfig(reader io.Reader) (Config, error) {
 }
 
 func (c Config) validate() error {
-	// TODO
-	return nil
+	var errs []error
+
+	for i, cal := range c.Calendars {
+		if cal.URL == "" {
+			errs = append(errs, fmt.Errorf("calendar[%d]: url is required", i))
+		}
+	}
+
+	if c.Weather.Location.Lat < -90 || c.Weather.Location.Lat > 90 {
+		errs = append(errs, fmt.Errorf("weather.location.lat must be between -90 and 90, got %g", c.Weather.Location.Lat))
+	}
+	if c.Weather.Location.Lng < -180 || c.Weather.Location.Lng > 180 {
+		errs = append(errs, fmt.Errorf("weather.location.lng must be between -180 and 180, got %g", c.Weather.Location.Lng))
+	}
+
+	if c.Weather.MinDiffThreshold < 0 {
+		errs = append(errs, fmt.Errorf("weather.min_diff_threshold must be non-negative, got %d", c.Weather.MinDiffThreshold))
+	}
+	if c.Weather.MinRainfallThreshold < 0 {
+		errs = append(errs, fmt.Errorf("weather.min_rainfall_threshold_mm must be non-negative, got %d", c.Weather.MinRainfallThreshold))
+	}
+	if c.Weather.MinSnowfallThreshold < 0 {
+		errs = append(errs, fmt.Errorf("weather.min_snowfall_threshold_cm must be non-negative, got %d", c.Weather.MinSnowfallThreshold))
+	}
+
+	if c.Picture.PageURL != "" {
+		if c.Picture.ImageXPath == "" {
+			errs = append(errs, fmt.Errorf("picture.image_xpath is required when picture.page_url is set"))
+		}
+		if c.Picture.LabelXPath == "" {
+			errs = append(errs, fmt.Errorf("picture.label_xpath is required when picture.page_url is set"))
+		}
+	}
+
+	if len(c.Generated.Cards) > 0 && c.Generated.OpenAIAPIKey == "" {
+		errs = append(errs, fmt.Errorf("generated.open_ai_api_key is required when generated cards are configured"))
+	}
+
+	return errors.Join(errs...)
 }
