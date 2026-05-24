@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -22,19 +21,17 @@ type renderData struct {
 	Cards  []*Card
 }
 
-func assembleData(header Header, cards []Card) (renderData, error) {
+func assembleData(header Header, cards []Card) renderData {
 	var data renderData
 
 	// Load the header and cards in parallel since most involve network calls.
 	var wg sync.WaitGroup
-	errs := make(chan error, 1+len(cards))
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
 		if err := header.Load(); err != nil {
-			errs <- fmt.Errorf("failed to load header: %w", err)
+			log.Printf("failed to load header: %v", err)
 		}
 	}()
 
@@ -42,25 +39,13 @@ func assembleData(header Header, cards []Card) (renderData, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-
 			if err := cards[i].Load(); err != nil {
-				errs <- fmt.Errorf("failed to load card (%s): %w", cards[i].Title, err)
+				log.Printf("failed to load card %q: %v", cards[i].Title, err)
 			}
 		}()
 	}
 
-	go func() {
-		wg.Wait()
-		close(errs)
-	}()
-
-	var err error
-	for e := range errs {
-		err = errors.Join(err, e)
-	}
-	if err != nil {
-		log.Println("failed to load some cards:", err)
-	}
+	wg.Wait()
 
 	data.Header = &header
 	for _, card := range cards {
@@ -68,7 +53,7 @@ func assembleData(header Header, cards []Card) (renderData, error) {
 			data.Cards = append(data.Cards, &card)
 		}
 	}
-	return data, nil
+	return data
 }
 
 // DevRender starts a local HTTP server to render the screen for development purposes.
@@ -80,16 +65,16 @@ func DevRender(header Header, cards []Card, addr string) {
 			log.Println("failed to load template:", err)
 			return
 		}
-		data, err := assembleData(header, cards)
-		if err != nil {
-			log.Println("failed to load data:", err)
-		}
-
+		data := assembleData(header, cards)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Println("failed to execute template:", err)
 		}
 	})
-	go func() { http.ListenAndServe(addr, mux) }()
+	go func() {
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Println("server error:", err)
+		}
+	}()
 	fmt.Printf("Server running on http://localhost%s/\nPress enter to stop\n", addr)
 	fmt.Scanln()
 }
@@ -104,11 +89,7 @@ func Render(header Header, cards []Card) ([]byte, error) {
 	errc := make(chan error, 1)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data, err := assembleData(header, cards)
-		if err != nil {
-			log.Println("failed to load data:", err)
-		}
-
+		data := assembleData(header, cards)
 		if err := tmpl.Execute(w, data); err != nil {
 			select {
 			case errc <- fmt.Errorf("failed to execute template: %w", err):
