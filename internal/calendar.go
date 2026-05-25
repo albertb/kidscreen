@@ -23,16 +23,7 @@ type CalendarOptions struct {
 func (c Config) GetCalendarOptions() ([]CalendarOptions, error) {
 	var calendars []CalendarOptions
 	for _, cal := range c.Calendars {
-		var filter *regexp.Regexp
-		if len(cal.AttendeesRegExp) != 0 {
-			var err error
-			filter, err = regexp.Compile(cal.AttendeesRegExp)
-			if err != nil {
-				return calendars, fmt.Errorf("failed to compile regex: %w", err)
-			}
-
-		}
-		calendars = append(calendars, CalendarOptions{URL: cal.URL, Attendees: filter})
+		calendars = append(calendars, CalendarOptions{URL: cal.URL, Attendees: cal.AttendeesRegExp})
 	}
 	return calendars, nil
 }

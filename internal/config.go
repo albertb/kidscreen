@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
 
 	"go.yaml.in/yaml/v4"
@@ -19,8 +20,9 @@ type Config struct {
 }
 
 type Calendar struct {
-	URL             string `yaml:"url"`
-	AttendeesRegExp string `yaml:"attendees_regexp"`
+	URL             string         `yaml:"url"`
+	Attendees       string         `yaml:"attendees_regexp"`
+	AttendeesRegExp *regexp.Regexp `yaml:"-"`
 }
 
 type Weather struct {
@@ -131,12 +133,20 @@ func ReadConfig(reader io.Reader) (Config, error) {
 	return config, nil
 }
 
-func (c Config) validate() error {
+func (c *Config) validate() error {
 	var errs []error
 
 	for i, cal := range c.Calendars {
 		if cal.URL == "" {
 			errs = append(errs, fmt.Errorf("calendar[%d]: url is required", i))
+		}
+		if cal.Attendees != "" {
+			r, err := regexp.Compile(cal.Attendees)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("calendar[%d]: invalid attendees_regexp: %w", i, err))
+			} else {
+				c.Calendars[i].AttendeesRegExp = r
+			}
 		}
 	}
 
