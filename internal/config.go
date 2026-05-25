@@ -15,6 +15,7 @@ type Config struct {
 	Weather   Weather    `yaml:"weather"`
 	Picture   Picture    `yaml:"picture"`
 	Generated Generated  `yaml:"generated"`
+	Screen    Screen     `yaml:"screen"`
 }
 
 type Calendar struct {
@@ -54,7 +55,13 @@ type Picture struct {
 
 type Generated struct {
 	OpenAIAPIKey string          `yaml:"open_ai_api_key"`
+	Model        string          `yaml:"model"`
 	Cards        []GeneratedCard `yaml:"cards"`
+}
+
+type Screen struct {
+	Width  int `yaml:"width"`
+	Height int `yaml:"height"`
 }
 
 type GeneratedCard struct {
@@ -77,6 +84,10 @@ type ChartConfig struct {
 
 func defaultConfig() Config {
 	return Config{
+		Screen: Screen{
+			Width:  1280,
+			Height: 720,
+		},
 		Weather: Weather{
 			Precipitations: Precipitations{
 				Hours: TimeRangeConfig{
@@ -144,6 +155,13 @@ func (c Config) validate() error {
 	}
 	if c.Weather.MinSnowfallThreshold < 0 {
 		errs = append(errs, fmt.Errorf("weather.min_snowfall_threshold_cm must be non-negative, got %d", c.Weather.MinSnowfallThreshold))
+	}
+
+	if c.Screen.Width <= 0 {
+		errs = append(errs, fmt.Errorf("screen.width must be positive, got %d", c.Screen.Width))
+	}
+	if c.Screen.Height <= 0 {
+		errs = append(errs, fmt.Errorf("screen.height must be positive, got %d", c.Screen.Height))
 	}
 
 	if c.Picture.PageURL != "" {

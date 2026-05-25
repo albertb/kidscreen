@@ -80,7 +80,7 @@ func DevRender(header Header, cards []Card, addr string) {
 }
 
 // Render generates a PNG image of the screen with the given header and cards.
-func Render(header Header, cards []Card) ([]byte, error) {
+func Render(header Header, cards []Card, width, height int) ([]byte, error) {
 	tmpl, err := template.ParseFS(templates, "screen.go.html")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
@@ -113,7 +113,7 @@ func Render(header Header, cards []Card) ([]byte, error) {
 	var body string
 	var buf []byte
 	if err := chromedp.Run(ctx,
-		chromedp.EmulateViewport(1280, 720),
+		chromedp.EmulateViewport(int64(width), int64(height)),
 		chromedp.Navigate(ts.URL),
 		chromedp.WaitReady("main"),
 		chromedp.OuterHTML("html", &body),

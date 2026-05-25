@@ -84,7 +84,7 @@ func Run(config Config, dev, fake bool, img, addr string) error {
 	if dev {
 		DevRender(header, cards, addr)
 	} else {
-		buf, err := Render(header, cards)
+		buf, err := Render(header, cards, config.Screen.Width, config.Screen.Height)
 		if err != nil {
 			return err
 		}

@@ -15,6 +15,7 @@ import (
 // GeneratedOptions holds options for creating LLM-generated Cards.
 type GeneratedOptions struct {
 	OpenAIAPIKey string
+	Model        string
 	Cards        []GeneratedCardOptions
 }
 
@@ -26,8 +27,13 @@ type GeneratedCardOptions struct {
 }
 
 func (c Config) GetGeneratedOptions() GeneratedOptions {
+	model := c.Generated.Model
+	if model == "" {
+		model = string(openai.ChatModelGPT4o)
+	}
 	return GeneratedOptions{
 		OpenAIAPIKey: c.Generated.OpenAIAPIKey,
+		Model:        model,
 		Cards: func() []GeneratedCardOptions {
 			var cards []GeneratedCardOptions
 			for _, card := range c.Generated.Cards {
@@ -57,7 +63,7 @@ func NewGeneratedCards(options GeneratedOptions) []Card {
 			loader: func(c *Card) error {
 				c.Body = ""
 				once.Do(func() {
-					body, err = fetchCompletion(client, card.Prompt)
+					body, err = fetchCompletion(client, options.Model, card.Prompt)
 				})
 				if err != nil {
 					return err
@@ -98,7 +104,7 @@ func NewFakeGeneratedCards() []Card {
 	}
 }
 
-func fetchCompletion(client openai.Client, prompt string) (string, error) {
+func fetchCompletion(client openai.Client, model, prompt string) (string, error) {
 	var completion string
 
 	response, err := client.Chat.Completions.New(
@@ -108,7 +114,7 @@ func fetchCompletion(client openai.Client, prompt string) (string, error) {
 				openai.SystemMessage(fmt.Sprintf("The current date is %s", time.Now().Format("January 2, 2006"))),
 				openai.UserMessage(prompt),
 			},
-			Model: openai.ChatModelGPT4o,
+			Model: openai.ChatModel(model),
 		},
 	)
 	if err != nil {
