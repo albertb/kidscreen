@@ -25,8 +25,8 @@ Prioritized list of commit-sized improvements.
 
 ## Priority 4 — Code Quality
 
-- [ ] **Fix error wrapping**: Replace `fmt.Errorf("...: %s", err)` with `fmt.Errorf("...: %w", err)` throughout so callers can use `errors.Is/As`.
-- [ ] **Remove unused `Card.Footer` field**: `Footer` is declared in `card.go` and rendered in the template but never populated; remove or implement it.
+- [x] **Fix error wrapping**: Replace `fmt.Errorf("...: %s", err)` with `fmt.Errorf("...: %w", err)` throughout so callers can use `errors.Is/As`.
+- [x] **Remove unused `Card.Footer` field**: `Footer` is declared in `card.go` and rendered in the template but never populated; remove or implement it.
 - [ ] **Fix `DevRender` template path**: Use the embedded FS (like `Render()` does) instead of a relative file path `"internal/screen.go.html"` that breaks when the working directory is wrong.
 - [ ] **Extract shared once-fetch pattern**: Weather, air quality, and calendar all repeat the same `sync.Once` + closure lazy-fetch pattern; extract a generic helper to reduce duplication.
 

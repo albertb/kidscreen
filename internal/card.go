@@ -9,16 +9,15 @@ type CardType int
 
 const (
 	CardTypeUnknown CardType = iota
-	CardTypeText             // Supports title, body, and footer.
-	CardTypeList             // Supports title, list, and footer.
-	CardTypeChart            // Supports title, chart, and footer.
+	CardTypeText
+	CardTypeList
+	CardTypeChart
 )
 
 // Card represents a single information card to be displayed on the screen.
 type Card struct {
-	Title  template.HTML
-	Footer template.HTML
-	Type   CardType
+	Title template.HTML
+	Type  CardType
 
 	// For CardTypeText
 	Body template.HTML
