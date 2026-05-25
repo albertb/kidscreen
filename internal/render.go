@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/chromedp/chromedp"
@@ -59,8 +61,11 @@ func assembleData(header Header, cards []Card) renderData {
 // DevRender starts a local HTTP server to render the screen for development purposes.
 func DevRender(header Header, cards []Card, addr string) {
 	mux := http.NewServeMux()
+	_, srcFile, _, _ := runtime.Caller(0)
+	tmplPath := filepath.Join(filepath.Dir(srcFile), "screen.go.html")
+
 	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
-		tmpl, err := template.ParseFiles("internal/screen.go.html")
+		tmpl, err := template.ParseFiles(tmplPath)
 		if err != nil {
 			log.Println("failed to load template:", err)
 			return
