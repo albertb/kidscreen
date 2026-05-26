@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/openai/openai-go"
@@ -52,19 +51,16 @@ func NewGeneratedCards(options GeneratedOptions) []Card {
 
 	var cards []Card
 	for _, card := range options.Cards {
-		var once sync.Once
-		var body string
-		var err error
+		fetch := newLazy(func() (string, error) {
+			return fetchCompletion(client, options.Model, card.Prompt)
+		})
 
 		cards = append(cards, Card{
 			Title:    template.HTML(card.Title),
 			Type:     CardTypeText,
 			Priority: card.Priority,
 			loader: func(c *Card) error {
-				c.Body = ""
-				once.Do(func() {
-					body, err = fetchCompletion(client, options.Model, card.Prompt)
-				})
+				body, err := fetch()
 				if err != nil {
 					return err
 				}

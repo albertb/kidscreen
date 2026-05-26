@@ -28,7 +28,7 @@ Prioritized list of commit-sized improvements.
 - [x] **Fix error wrapping**: Replace `fmt.Errorf("...: %s", err)` with `fmt.Errorf("...: %w", err)` throughout so callers can use `errors.Is/As`.
 - [x] **Remove unused `Card.Footer` field**: `Footer` is declared in `card.go` and rendered in the template but never populated; remove or implement it.
 - [x] **Fix `DevRender` template path**: Use `runtime.Caller(0)` to derive the template's absolute path from the source file location, so it works regardless of working directory.
-- [ ] **Extract shared once-fetch pattern**: Weather, air quality, and calendar all repeat the same `sync.Once` + closure lazy-fetch pattern; extract a generic helper to reduce duplication.
+- [x] **Extract shared once-fetch pattern**: Weather, air quality, and calendar all repeat the same `sync.Once` + closure lazy-fetch pattern; extract a generic helper to reduce duplication.
 
 ## Priority 5 — Tests
 

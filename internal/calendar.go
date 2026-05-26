@@ -44,16 +44,9 @@ func (c CalendarOptions) MatchesFilter(event gocal.Event) bool {
 
 // NewCalendarCards creates new calendar Cards using the given options.
 func NewCalendarCards(options []CalendarOptions) []Card {
-	var once sync.Once
-	var cal calendar
-	var err error
-
-	return makeCalendarCards(func() (calendar, error) {
-		once.Do(func() {
-			cal, err = fetchCalendars(options)
-		})
-		return cal, err
-	})
+	return makeCalendarCards(newLazy(func() (calendar, error) {
+		return fetchCalendars(options)
+	}))
 }
 
 // NewFakeCalendarCards creates new calendar Cards with fake data for testing purposes.

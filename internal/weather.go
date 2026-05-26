@@ -8,7 +8,6 @@ import (
 	"math"
 	"math/rand"
 	"strings"
-	"sync"
 
 	"github.com/hectormalot/omgo"
 )
@@ -58,16 +57,9 @@ func (w *WeatherInfo) Load() error {
 
 // NewWeatherCardAndInfo creates a new weather Card and WeatherInfo using the given latitude and longitude.
 func NewWeatherCardAndInfo(options WeatherOptions) ([]Card, WeatherInfo) {
-	var once sync.Once
-	var weather weatherData
-	var err error
-
-	return makeWeatherCardAndInfo(options, func() (weatherData, error) {
-		once.Do(func() {
-			weather, err = fetchWeatherData(options.Location)
-		})
-		return weather, err
-	})
+	return makeWeatherCardAndInfo(options, newLazy(func() (weatherData, error) {
+		return fetchWeatherData(options.Location)
+	}))
 }
 
 // NewFakeWeatherCardAndInfo creates a new weather Card and WeatherInfo with fake data for testing purposes.

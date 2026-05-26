@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/antchfx/htmlquery"
@@ -30,26 +29,24 @@ func (c Config) GetPictureOptions() PictureOptions {
 // NewPictureCard creates a new picture Card using the given options.
 // The card will display a random picture and its label from the specified page.
 func NewPictureCard(options PictureOptions) Card {
-	var once sync.Once
-	var picture picture
-	var err error
-
 	if options.PageURL == "" {
 		return Card{}
 	}
+
+	fetch := newLazy(func() (picture, error) {
+		return fetchPicture(options)
+	})
 
 	return Card{
 		Type:     CardTypeText,
 		Priority: 35,
 		loader: func(c *Card) error {
-			once.Do(func() {
-				picture, err = fetchPicture(options)
-			})
+			pic, err := fetch()
 			if err != nil {
 				return err
 			}
-			c.Title = template.HTML(picture.Label)
-			c.Body = template.HTML(fmt.Sprintf(`<img src="%s">`, picture.URL))
+			c.Title = template.HTML(pic.Label)
+			c.Body = template.HTML(fmt.Sprintf(`<img src="%s">`, pic.URL))
 			return nil
 		},
 	}

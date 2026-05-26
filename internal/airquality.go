@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 )
 
 type AirQualityOptions struct {
@@ -24,16 +23,9 @@ func (c Config) GetAirQualityOptions() AirQualityOptions {
 
 // NewAirQualityCard creates a new air quality Card using the given latitude and longitude.
 func NewAirQualityCard(options AirQualityOptions) Card {
-	var once sync.Once
-	var aqi []int
-	var err error
-
-	return makeAirQualityCard(options, func() ([]int, error) {
-		once.Do(func() {
-			aqi, err = fetchAirQualityData(options.Location)
-		})
-		return aqi, err
-	})
+	return makeAirQualityCard(options, newLazy(func() ([]int, error) {
+		return fetchAirQualityData(options.Location)
+	}))
 }
 
 // NewFakeAirQualityCard creates a new air quality Card with fake data for testing purposes.
