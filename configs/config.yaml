@@ -1,34 +1,79 @@
-# Every calendar will be fetched, and optionally filtered with the given attendees regexp.
-# Events scheduled for today and tomorrow will be added to their respective cards.
+# kidscreen configuration
+#
+# All sections are optional unless noted. Fields not specified fall back to
+# the defaults documented below.
+
+# calendars: zero or more iCal feeds to display as today/tomorrow event cards.
+# Every feed is fetched; events are shown for today and tomorrow.
 calendars:
-  - url: "https://calendar.google.com/calendar/ical/FOO/basic.ics"
-    attendees_regexp: "whoever@gmail.com"
-  - url: "https://calendar.google.com/calendar/ical/BAR/basic.ics"
+  - url: "https://calendar.google.com/calendar/ical/CALENDAR_ID/basic.ics"  # required
+    # attendees_regexp: optional RE2 regular expression; only events whose
+    # attendee name or email matches are shown. Omit to show all events.
+    attendees_regexp: "alice@example.com|bob@example.com"
+  - url: "https://calendar.google.com/calendar/ical/ANOTHER_ID/basic.ics"
+    # No attendees filter — all events are shown.
 
-# The weather location will be used to fetch weather and air quality forecast for the day.
-# If rain is forecast, a card with a chart of the hourly probability will be displayed.
-# If air quality is forecast to be poor, a card with a chart of the houly AQI will be displayed.
+# weather: drives the header temperature display and the rain/AQI cards.
 weather:
-  #location: { lat: 45.5088, lng: -73.5878 } # Montreal
-  location: { lat: 47.6696078, lng: -122.3231917 } # Seattle
-#  precipitations:
-#    relevant_time: { start: 8h, end: 19h }
-#    chart: { top: 100, step: 25, min: 0, high: 75 }
-#  airquality:
-#    relevant_time: { start: 8h, end: 19h }
-#    chart: { top: 150, step: 25, min: 5, high: 100 }
+  # location: coordinates of the place to fetch forecasts for.
+  # lat: -90 to 90, lng: -180 to 180.
+  location:
+    lat: 45.5088   # e.g. 45.5088 for Montreal
+    lng: -73.5878
 
-# The page will be fetched, and the XPaths used to extract images and their labels.
-# One image/label pair will be randomly selected to be displayed in a card.
-#picture:
-#  page_url: "https://example.com/galery"
-#  image_xpath: "//div[@class='thumbnail']/img"
-#  label_xpath: "following-sibling::p[@class='label'][1]"
+  # precipitations: controls when and how the rain-probability chart is shown.
+  precipitations:
+    # relevant_time: hours of the day that matter for deciding whether to show
+    # the card. Only values inside [start, end] count toward the threshold.
+    # Format: "<n>h". Defaults: start 7h, end 20h.
+    relevant_time: { start: 7h, end: 20h }
+    # chart display options:
+    #   top:  default y-axis ceiling when no data exceeds it (percent, 0–100)
+    #   step: increment added to top when data exceeds it
+    #   min:  minimum value required to show the card at all
+    #   high: value that maps to maximum bar shading
+    chart: { top: 100, step: 5, min: 50, high: 75 }
 
-# Using the given OpenAI API key, each card will be generated using the specified prompt.
+  # airquality: controls when and how the AQI chart is shown.
+  airquality:
+    relevant_time: { start: 7h, end: 20h }  # defaults
+    # AQI values are European AQI (0–100+).
+    chart: { top: 100, step: 25, min: 45, high: 100 }
+
+  # min_diff_threshold: minimum °C difference between yesterday's and today's
+  # high temperature needed to show a "warmer/colder" message. Default: 7.
+  # Must be non-negative.
+  min_diff_threshold: 7
+
+  # min_rainfall_threshold_mm: minimum forecasted rainfall (mm) required to
+  # show the precipitation chart card. Default: 5. Must be non-negative.
+  min_rainfall_threshold_mm: 5
+
+  # min_snowfall_threshold_cm: minimum forecasted snowfall (cm) required to
+  # show a snowfall message. Default: 5. Must be non-negative.
+  min_snowfall_threshold_cm: 5
+
+# picture: scrape an image and caption from a web page for a daily picture card.
+# Omit this section entirely to disable the picture card.
+picture:
+  page_url: "https://example.com/gallery"       # required if section is present
+  image_xpath: "//div[@class='thumb']/img/@src"  # required; XPath to the <img> src
+  label_xpath: "following-sibling::p[1]"         # required; XPath relative to the image node
+
+# generated: LLM-generated text cards via the OpenAI API.
+# Omit this section to disable generated cards.
 generated:
-  open_ai_api_key: "INSERT-OPEN-AI-API-KEY-HERE"
+  open_ai_api_key: "sk-..."  # required when cards are configured
+  # model: OpenAI model to use. Default: gpt-4o.
+  model: "gpt-4o"
   cards:
-    - title: "Aujourd'hui dans l'histoire"
+    - title: "Title shown on card"
+      # priority: higher values appear earlier on screen. Range: any integer.
       priority: 45
-      prompt: "Aujourd'hui dans l'histoire, maximum 20 mots. Ne répète pas la date, seulement l'année."
+      prompt: "Write a one-sentence interesting fact about today in history."
+
+# screen: output image dimensions. Must match the resolution of your e-ink
+# display. Defaults: 1280×720.
+screen:
+  width: 1280   # pixels, must be positive
+  height: 720   # pixels, must be positive
