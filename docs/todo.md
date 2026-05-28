@@ -32,10 +32,10 @@ Prioritized list of commit-sized improvements.
 
 ## Priority 5 — Tests
 
-- [ ] **Add unit tests for `chart.go`**: Pure functions `MaxValue()`, `Valid()`, `TopValue()`, and `Hours()` can be tested with no mocking.
-- [ ] **Add unit tests for `config.go`**: Test `ReadConfig` with valid and invalid YAML, and `validate()` once it's implemented.
-- [ ] **Add unit tests for `header.go`**: Test the French day/month formatting logic with a fixed `time.Time`.
-- [ ] **Add integration test for `Render()`**: Use `fake.go` data sources with `httptest` to verify a PNG is produced without panicking.
+- [x] **Add unit tests for `chart.go`**: Pure functions `MaxValue()`, `Valid()`, `TopValue()`, and `Hours()` can be tested with no mocking.
+- [x] **Add unit tests for `config.go`**: Test `ReadConfig` with valid and invalid YAML, and `validate()` once it's implemented.
+- [x] **Add unit tests for `header.go`**: Test the French day/month formatting logic with a fixed `time.Time`.
+- [x] **Add integration test for `Render()`**: Use `fake.go` data sources with `httptest` to verify a PNG is produced without panicking.
 
 ## Priority 6 — Docs / Setup
 
