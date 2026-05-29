@@ -17,8 +17,7 @@ Inkplate display(INKPLATE_3BIT);
 #define HOUR_OF_REFRESH 3       // The hour of the day we refresh the screen at
 #define TIMEZONE_OFFSET -5      // The timezone the screen is in
 
-// Conversion factor for micro seconds to seconds
-const uint64_t kMicrosToSecs = 1000000ULL;
+const uint64_t kMicrosPerSec = 1000000ULL;
 
 void setup() {
   // Init serial communication
@@ -43,7 +42,12 @@ void setup() {
   Serial.println("Connected to Wi-Fi");
 
   // Draw an image on the screen
-  display.drawImage(IMAGE_URL, display.PNG, 0, 0);
+  if (!display.drawImage(IMAGE_URL, display.PNG, 0, 0)) {
+    display.printf("Image failed ");
+    Serial.println("Failed to download image");
+    go_to_sleep(3600);
+    return;
+  }
 
   // Print the battery charge on the screen.
   double voltage = display.readBattery();
@@ -95,7 +99,8 @@ void go_to_sleep(uint64_t duration_secs) {
   display.display();
 
   Serial.printf("Going to sleep for %.2f hours\n", (float)duration_secs/3600.0);
-  esp_sleep_enable_timer_wakeup(duration_secs * kMicrosToSecs);
+  esp_sleep_enable_timer_wakeup(duration_secs * kMicrosPerSec);
+  // Wake button (USER button on Inkplate 5 Gen 2).
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_36, 0);
   esp_deep_sleep_start();
 }
