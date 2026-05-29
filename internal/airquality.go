@@ -23,9 +23,9 @@ func (c Config) GetAirQualityOptions() AirQualityOptions {
 
 // NewAirQualityCard creates a new air quality Card using the given latitude and longitude.
 func NewAirQualityCard(options AirQualityOptions) Card {
-	return makeAirQualityCard(options, newLazy(func() ([]int, error) {
+	return makeAirQualityCard(options, newLazy(withRetry(3, func() ([]int, error) {
 		return fetchAirQualityData(options.Location)
-	}))
+	})))
 }
 
 // NewFakeAirQualityCard creates a new air quality Card with fake data for testing purposes.

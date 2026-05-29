@@ -33,9 +33,9 @@ func NewPictureCard(options PictureOptions) Card {
 		return Card{}
 	}
 
-	fetch := newLazy(func() (picture, error) {
+	fetch := newLazy(withRetry(3, func() (picture, error) {
 		return fetchPicture(options)
-	})
+	}))
 
 	return Card{
 		Type:     CardTypeText,

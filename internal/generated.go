@@ -51,9 +51,9 @@ func NewGeneratedCards(options GeneratedOptions) []Card {
 
 	var cards []Card
 	for _, card := range options.Cards {
-		fetch := newLazy(func() (string, error) {
+		fetch := newLazy(withRetry(3, func() (string, error) {
 			return fetchCompletion(client, options.Model, card.Prompt)
-		})
+		}))
 
 		cards = append(cards, Card{
 			Title:    template.HTML(card.Title),

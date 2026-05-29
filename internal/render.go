@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"fmt"
@@ -15,15 +16,37 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-//go:embed screen.go.html
+//go:embed *.go.html
 var templates embed.FS
+
+func renderErrorCard(err error, dev bool) template.HTML {
+	var (
+		tmpl    *template.Template
+		tmplErr error
+	)
+	if dev {
+		_, srcFile, _, _ := runtime.Caller(0)
+		tmplPath := filepath.Join(filepath.Dir(srcFile), "error_card.go.html")
+		tmpl, tmplErr = template.ParseFiles(tmplPath)
+	} else {
+		tmpl, tmplErr = template.ParseFS(templates, "error_card.go.html")
+	}
+	if tmplErr != nil {
+		return template.HTML(template.HTMLEscapeString(err.Error()))
+	}
+	var buf bytes.Buffer
+	if tmplErr = tmpl.Execute(&buf, err.Error()); tmplErr != nil {
+		return template.HTML(template.HTMLEscapeString(err.Error()))
+	}
+	return template.HTML(buf.String())
+}
 
 type renderData struct {
 	Header *Header
 	Cards  []*Card
 }
 
-func assembleData(header Header, cards []Card) renderData {
+func assembleData(header Header, cards []Card, dev bool) renderData {
 	var data renderData
 
 	// Load the header and cards in parallel since most involve network calls.
@@ -43,6 +66,11 @@ func assembleData(header Header, cards []Card) renderData {
 			defer wg.Done()
 			if err := cards[i].Load(); err != nil {
 				log.Printf("failed to load card %q: %v", cards[i].Title, err)
+				if cards[i].Title == "" {
+					cards[i].Title = "Error"
+				}
+				cards[i].Type = CardTypeText
+				cards[i].Body = renderErrorCard(err, dev)
 			}
 		}()
 	}
@@ -70,7 +98,7 @@ func DevRender(header Header, cards []Card, addr string) {
 			log.Println("failed to load template:", err)
 			return
 		}
-		data := assembleData(header, cards)
+		data := assembleData(header, cards, true)
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Println("failed to execute template:", err)
 		}
@@ -94,7 +122,7 @@ func Render(header Header, cards []Card, width, height int) ([]byte, error) {
 	errc := make(chan error, 1)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data := assembleData(header, cards)
+		data := assembleData(header, cards, false)
 		if err := tmpl.Execute(w, data); err != nil {
 			select {
 			case errc <- fmt.Errorf("failed to execute template: %w", err):
